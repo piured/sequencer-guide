@@ -1,0 +1,205 @@
+% !TeX spellcheck = en_US
+\documentclass[a4paper,9pt]{article}
+\usepackage[left=2.5cm, top=2.5cm, right=2.7cm, bottom=2.4cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{multicol}
+\usepackage{lmodern}
+\usepackage{graphicx}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{pgfplots}
+\usepackage{amssymb}
+\usepackage{tipa}
+\usepackage{mathtools}
+\usepackage{fancyvrb}
+\usepackage{qtree}
+\newcommand{\RA}{$\rightarrow$\ }
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+
+\newenvironment{uprightmath}
+{\changecodes\ignorespaces}
+{\ignorespacesafterend}
+
+\newcommand{\changecodes}{%
+    \count255=`A
+    \loop
+    \mathcode\count255=\numexpr\mathcode\count255-\string"100\relax
+    \ifnum\count255<`Z
+    \advance\count255 1
+    \repeat
+    \count255=`a
+    \loop
+    \mathcode\count255=\numexpr\mathcode\count255-\string"100\relax
+    \ifnum\count255<`z
+    \advance\count255 1
+    \repeat
+}
+
+\begin{document}
+    
+    \title{A guide to understand Stepmania's gimmicks}
+    \author{
+        Pedro G. Bascoy\\
+        \texttt{pepo\_gonba@hotmail.com}\\
+    }
+    \maketitle
+    
+    
+    \section{From song time to beat}
+
+    \subsection{Stemania definition}
+    
+    A \texttt{SSC} file gives a list of pairs which defines the bpms. The first item in the pair is the target beat, and the second item is the desired BPM from that beat on. Let us imagine we have a \texttt{SSC} file with the following definition:
+    \begin{verbatim}
+    #BPMS:0,120:8,70:13,200;     
+    \end{verbatim}
+    Let us convert this cumbersome definition into a friendly structure:
+    \begin{verbatim}
+  {
+    [
+      beat: 0,
+      bpm: 120
+    ],
+    [
+      beat: 8,
+      bpm: 180 
+    ],
+    [
+      beat: 13,
+      bpm: 60 
+    ]
+  }
+    \end{verbatim}
+
+    This \texttt{\#BPMS} definition is telling us three things:
+    \begin{enumerate}
+	    \item From beat $- \infty$ to beat 8, the BPM is 120.
+	    \item From beat 8 to beat 13, the BPM is 180.
+	    \item From beat 13 to beat $+\infty$, the BPM is 60.
+    \end{enumerate}
+
+    \subsection{Challenge}
+
+    We want to find a function $f : \mathbb{R} \rightarrow \mathbb{R}$ that retrieves the current beat given the second.  This function is useful when a song is playing and we want to know at what beat we are at if we know how much time has passed since the start of the song. Notes move at the speed of the BPM, so if we can have a function $f$, we can sort of know where the steps should be drawn.
+
+    \subsection{Solution}
+
+    First, let us convert BPMS to BPSS (Beats Per Second), since we are going to provide the input in seconds instead of minutes. We can do so by dividing the BPMS by 60, i.e.
+    \begin{equation}
+	    \text{BPS}(x) = x \times \frac{\text{Beats}}{\text{Minute}} = x \times \frac{1 \times \text{Minute}}{60 \times \text{Seconds}} \frac{\text{Beats}}{\text{Minute}} = \frac{x}{60} \times \frac{\text{Beats}}{\text{Second}}\,. 
+	    \label{eq:bpm2bps}
+    \end{equation}
+
+    Next, let us define a piecewise function $f': \mathbb{R} \rightarrow \mathbb{R}$ that gives the current BPS given the current Beat. Taking the \texttt{\#BPMS} toy example from the previous section, we get that
+    \begin{equation}
+	    f'(x) = \begin{dcases}
+		    2\,, & \text{if $x \leq 8\,;$}\\ 
+		    3\,, & \text{if $8 < x \leq 13\,;$}\\ 
+		    1\,, & \text{if $x > 13\,.$}\\ 
+	    \end{dcases}
+	    \label{eq:beat2bps}
+    \end{equation}
+
+    In Figure \ref{fig:beat2bps} you can see the plot of $f'$ we just defined in \eqref{eq:beat2bps}. 
+
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+    func(\x)= (\x<=8) * 2  +
+     and(\x>8, \x<=13) * 3  +
+     (\x>13) * (1);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=5, ytick={0,...,5}, ylabel=BPS,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Beat,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+
+
+	\caption{Plot of $f'$}
+	\label{fig:beat2bps}
+\end{figure}
+
+Note that by using $f'$, we can get the BPS at any beat of the song. This is great, but it does not quite solve our problem. 
+
+Next, we can calculate the SPB (Seconds Per Beat) by just inversing the BPS, i.e.
+\begin{equation}
+	\text{SPB} = \frac{1}{\text{BPS}}\,,
+	\label{eq:bps2spb}
+\end{equation}
+and therefore we can define a function $t: \mathbb{R} \rightarrow \mathbb{R}$
+
+\begin{equation}
+	t(x) = x\times \text{SPB}
+	\label{eq:beat2seconds}
+\end{equation}
+that given a beat $x$ retrieves the current second.
+
+Let 
+
+
+
+    \begin{equation}
+	    f''(x) = \begin{dcases}
+		    \frac{x}{2}\,, & \text{if $x \leq 8\,;$}\\[1em]
+		    \frac{8}{2}+\frac{x-8}{3}\,, & \text{if $8 < x \leq 13\,;$}\\[1em]  
+		    \frac{8}{2}+\frac{5}{3}+x- 13\,, & \text{if $x > 13\,;$}\\ 
+	    \end{dcases}
+	    \label{eq:beat2second}
+    \end{equation}
+    be the function that given a beat $x$ retrieves the current second $f''(x)$. This function is the result of plugging \eqref{eq:bps2spb} and \eqref{eq:beat2seconds} into \eqref{eq:beat2bps} and can be rewritten recursively as
+
+    \begin{equation}
+	    f''(x) = \begin{dcases}
+		    \frac{x}{2}\,, & \text{if $x \leq 8\,;$}\\[1em]
+		    f''(8)+\frac{x-8}{3}\,, & \text{if $8 < x \leq 13\,;$}\\[1em]  
+		    f''(13) + x- 13\,, & \text{if $x > 13\,.$}\\ 
+	    \end{dcases}
+	    \label{eq:beat2second}
+    \end{equation}
+
+    Figure \ref{fig:beat2second} depicts the function $f''$. Note that this is just the opposite of the desired solution!
+    
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+	  func(\x)= (\x<=8) * (\x/2)  +
+	  and(\x>8, \x<=13) * (8/2 + (\x-8)/3)  +
+     (\x>13) * (8/2 + 5/3 +\x - 13);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=9, ytick={0,...,9}, ylabel=Second,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Beat,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+	\caption{Plot of $f''$}
+	\label{fig:beat2second}
+\end{figure}
+    
+    
+\end{document}
+
+
+
+
+
+
+
+
+
