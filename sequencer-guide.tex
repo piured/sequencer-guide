@@ -157,7 +157,7 @@ Let
 	    \end{dcases}
 	    \label{eq:beat2second}
     \end{equation}
-    be the function that given a beat $x$ retrieves the current second $f''(x)$. This function is the result of plugging \eqref{eq:bps2spb} and \eqref{eq:beat2seconds} into \eqref{eq:beat2bps} and can be rewritten recursively as
+    be the function that given a beat $x$ retrieves the current second. This function is the result of plugging \eqref{eq:bps2spb} and \eqref{eq:beat2seconds} into \eqref{eq:beat2bps}, and can be rewritten recursively as
 
     \begin{equation}
 	    f''(x) = \begin{dcases}
@@ -191,8 +191,67 @@ Let
 	\caption{Plot of $f''$}
 	\label{fig:beat2second}
 \end{figure}
+
+As it turns out, the function $f$ that we are looking for is just the inverse function of $f''$, in short
+\begin{equation}
+	f = f''^{-1}\,,
+	\label{eq:inverse}
+\end{equation}
+
+thus
+
+    \begin{equation}
+    f(x) = \begin{dcases}
+		    2x\,, & \text{if $x \leq 4\,;$}\\[1em]
+		    (x-4)\times 3 + 8\,, & \text{if $4 < x \leq 5.6\,;$}\\[1em]  
+		    x-5.6 + 13\,, & \text{if $x > 5.6\,.$}\\ 
+	    \end{dcases}
+	    \label{eq:beat2second}
+    \end{equation}
     
+    A plot of $f$ can be seen in Figure \ref{fig:second2beat}.
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+	  func(\x)= (\x<=4) * (2*\x)  +
+	  and(\x>4, \x<=5.66666) * (3*(\x-4)+8)  +
+	  (\x>5.66666) * ((\x-5.66666) + 13);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Beat,
+  xmin=0, xmax=9, xtick={0,...,9}, xlabel=Second,
+]
+\addplot[blue, domain=0:9, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+	\caption{Plot of $f$}
+	\label{fig:second2beat}
+\end{figure}
+
+\subsection{Formalization}
+Let $d = \{b_i, v_i\}_{1}^{n}$ be a sequence of $n$ beat signatures, where $v_i$ is the BPS  value at beat $b_i$. 
+Let $ f: \mathbb{R} \rightarrow \mathbb{R} $ be a function that provided a beat, returns the seconds from the first beat. We define this function as a $n$-step piecewise function
+    \begin{equation}
+	    f(x) = \begin{dcases}
+		    f(b_{i-1}) + \frac{x-b_{i-1}}{v_i}\,, & \text{if $b_{i-1} < x \leq b_{i}\,;\quad \forall i=1,\ldots,n$}\,; \\
+	    \end{dcases}
+	    \label{eq:beat2second}
+    \end{equation}
+    where $b_0 := 0$ and $f(b_0) := 0$.
     
+    Analogously, let $ g: \mathbb{R} \rightarrow \mathbb{R} $ be a function that provided a second, returns the beat from the zero second. We define this function as a $n$-step piecewise function
+    \begin{equation}
+	    g(x) = \begin{dcases}
+		    \left[x-f(b_{i-1})\right]\times v_i + b_{i-1}\,, & \text{if $f(b_{i-1}) < x \leq f(b_{i})\,;\quad \forall i=1,\ldots,n$}\,, \\
+	    \end{dcases}
+	    \label{eq:beat2second}
+    \end{equation}
+    where $g = f^{-1}$.
+
 \end{document}
 
 
