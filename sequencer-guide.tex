@@ -6,10 +6,12 @@
 \usepackage{multicol}
 \usepackage{lmodern}
 \usepackage{graphicx}
-
+\usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{pgfplots}
+\usepgflibrary{patterns}
+\usepgfplotslibrary{fillbetween}
 \usepackage{amssymb}
 \usepackage{tipa}
 \usepackage{mathtools}
@@ -51,7 +53,7 @@
     
     \section{From song time to beat}
 
-    \subsection{Stemania definition}
+    \subsection{Stemania definition}\label{sec:stepmania-definition-time2beat}
     
     A \texttt{SSC} file gives a list of pairs which defines the bpms. The first item in the pair is the target beat, and the second item is the desired BPM from that beat on. Let us imagine we have a \texttt{SSC} file with the following definition:
     \begin{verbatim}
@@ -233,32 +235,248 @@ thus
 \end{figure}
 
 \subsection{Formalization}
-Let $d = \{b_i, v_i\}_{1}^{n}$ be a sequence of $n$ beat signatures, where $v_i$ is the BPS  value at beat $b_i$. 
+Let $d = \{\left( b_i, v_i \right)\}_{i=1}^{n}$ be a sequence of $n$ beat signatures, where $v_i$ is the BPS  value at beat $b_i$. 
 Let $ f: \mathbb{R} \rightarrow \mathbb{R} $ be a function that provided a beat, returns the seconds from the first beat. We define this function as a $n$-step piecewise function
     \begin{equation}
 	    f(x) = \begin{dcases}
-		    f(b_{i-1}) + \frac{x-b_{i-1}}{v_i}\,, & \text{if $b_{i-1} < x \leq b_{i}\,;\quad \forall i=1,\ldots,n$}\,; \\
+		    \frac{x}{v_1}\,, & \text{if $x \leq b_{2} $ }\,;\\
+		    f(b_{i}) + \frac{x-b_{i}}{v_i}\,, & \text{if $b_{i} < x \leq b_{i+1}\,; \quad \forall i=2,\ldots,n $}\,; \\
 	    \end{dcases}
 	    \label{eq:beat2second}
     \end{equation}
-    where $b_0 := 0$ and $f(b_0) := 0$.
+    where $ b_1 := 0$,  and $b_{n+1} := \infty$.
     
     Analogously, let $ g: \mathbb{R} \rightarrow \mathbb{R} $ be a function that provided a second, returns the beat from the zero second. We define this function as a $n$-step piecewise function
     \begin{equation}
 	    g(x) = \begin{dcases}
-		    \left[x-f(b_{i-1})\right]\times v_i + b_{i-1}\,, & \text{if $f(b_{i-1}) < x \leq f(b_{i})\,;\quad \forall i=1,\ldots,n$}\,, \\
+		    v_1x\,, & \text{if $x \leq f(b_{2}) $ }\,;\\
+		    \left[x-f(b_{i})\right]\times v_i + b_{i}\,, & \text{if $f(b_{i}) < x \leq f(b_{i+1})\,;\quad \forall i=2,\ldots,n$}\,, \\
 	    \end{dcases}
 	    \label{eq:beat2second}
     \end{equation}
     where $g = f^{-1}$.
 
+    \section{From beat to position}
+
+    \subsection{Stepmania definition}
+
+    There are a pair of stepmania definitions that influence the position where notes should be placed on the screen. One of them is \texttt{\#BPMS}, which arguably is the rate at what notes travel upwards towards the receptor w.r.t. to the music rhythm. As well see later on, we will consider the BPMS as a speed function from which we can discover the position of anote given the beat it should be pressed. As a toy example, we will use the same definition as provided in Section \ref{sec:stepmania-definition-time2beat}. 
+
+    However, there is another gimmick that plays a role in the note positioning: \texttt{\#SCROLLS}. Let's have a look at an example:
+
+    \begin{verbatim}
+    #SCROLLS:0=1,4=0,10=2;     
+    \end{verbatim}
+    Again, let us convert this cumbersome definition into a friendly structure:
+    \begin{verbatim}
+  {
+    [
+      beat: 0,
+      scroll: 1
+    ],
+    [
+      beat: 4,
+      scroll: 0 
+    ],
+    [
+      beat: 10,
+      scroll: 2 
+    ]
+  }
+    \end{verbatim}
+    The scroll gimmick changes the effective BPM at a given beat by a rate defined by the scroll value. Thus, in this example, the SCROLLS gimmick is changing the BPMs as follows:
+    \begin{enumerate}
+		\item From beat 0 to beat 4, the BPM is its value times 1.
+		\item From beat 4 to beat 10, the BPM is its value times 0. (all the steps in between this beats, will have the same position)
+		\item From beat 10 on, the BPM is its value times 2.
+    \end{enumerate}
+    \subsection{Challenge}
+
+    We would like to have a function $ p: \mathbb{R} \rightarrow \mathbb{R} $ that given a beat, it retrieves the position w.r.t. the origin (or where the receptor is) where a note at that beat should be drawn.
+
+    \subsection{Solution}
+    Let us start by defining a function $h: \mathbb{R} \rightarrow \mathbb{R}$ that retrieves the current BPS (Beats per Second) from the current beat. Given the example, this function is identical to that of \eqref{eq:beat2bps},
+
+    \begin{equation}
+	    h(x) = \begin{dcases}
+		    2\,, & \text{if $x \leq 8\,;$}\\ 
+		    3\,, & \text{if $8 < x \leq 13\,;$}\\ 
+		    1\,, & \text{if $x > 13\,.$}\\ 
+	    \end{dcases}
+	    \label{eq:beat2bps-as-h}
+    \end{equation}
+
+    You can see a plot of this function in Figure  \ref{fig:beat2bps}. Now, let us define a new function $g: \mathbb{R}\rightarrow \mathbb{R}$ that given a beat, retrieves the effective BPS (i.e., BPS with applied scrolls). For that matter, we just need to check out in what beats the scroll is taking place, and change the BPS accordingly. For our toy example the resultant $g$ function looks like this
+    \begin{equation}
+	    g(x) = \begin{dcases}
+		    1\times 2\,, & \text{if $x \leq 4\,;$}\\ 
+		    0\times 2\,, & \text{if $4 < x \leq 8\,;$}\\ 
+		    0\times 3\,, & \text{if $8 < x \leq 10\,;$}\\ 
+		    2\times 3\,, & \text{if $10 < x \leq 13\,;$}\\ 
+		    2\times 1 \,, & \text{if $x > 13\,.$}\\ 
+	    \end{dcases}
+	    \label{eq:beat2effective-bps}
+    \end{equation}
+
+    The function $g$ is depicted in Figure \ref{fig:beat2effective-bps}.
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+    func(\x)= (\x<=4) * 2  +
+     and(\x>4, \x<=8) * 0  +
+     and(\x>8, \x<=10) * 0  +
+     and(\x>10, \x<=13) * 6 +
+     (\x>13) * (2);
+  },
+  declare function={
+    func2(\x)= (\x<=8) * 2  +
+     and(\x>8, \x<=13) * 3  +
+     (\x>13) * (1);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=7, ytick={0,...,7}, ylabel=BPS,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Beat,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\addplot[red, dotted, thick, domain=0:15, samples=400]{func2(x)};
+\end{axis}
+\end{tikzpicture} 
+\caption{Plot of $g$ (blue line), Plot of $h$ (dotted, red line)}
+	\label{fig:beat2effective-bps}
+\end{figure}
+Now, this is great! By asking $g$, now we have the effective BPS. Note that $g$ is a function that models speed, i.e. the velocity that the notes should move towards the receptor.
+To retrieve the position at each beat, we can just consider that $\frac{dp}{dx} = g(x)$. Therefore, to get $p$, we just have to take in integral of $g$ w.r.t. $x$,
+\begin{equation}
+p(x) = \int g(x) dx\,.
+	\label{eq:beat2position}
+\end{equation}
+
+For instance, if we want to know the position of a note at the beat 11, it would only take to calculate 
+\begin{equation}
+	\text{position} = \int_{0}^{11} g(x) dx\,.
+	\label{eq:beat2position-example}
+\end{equation}
+
+You can see an example in Figure \ref{fig:example-area}. As shown, the position  at beat 11 is the area under the curve (in light blue) from 0 to 11.
+
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+    func(\x)= (\x<=4) * 2  +
+     and(\x>4, \x<=8) * 0  +
+     and(\x>8, \x<=10) * 0  +
+     and(\x>10, \x<=13) * 6 +
+     (\x>13) * (2);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=7, ytick={0,...,7}, ylabel=BPS,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Beat,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\addplot[draw=none,blue, domain=0:11, samples=400, name path=A]{func(x)};
+\addplot[draw=none,name path=B, domain=0:11] {0};
+\addplot+[blue, fill opacity=0.2] fill between[of=A and B, soft clip={domain=0:15}];
+\end{axis}
+\end{tikzpicture} 
+\caption{The position at beat 11 will be the area underneeth the function $g$.}
+	\label{fig:example-area}
+\end{figure}
+The resulting integral of $g(x)$ in our toy example is
+    \begin{equation}
+	    p(x) = \begin{dcases}
+		    2x\,, & \text{if $x \leq 4\,;$}\\ 
+		    p(4) + 0\,, & \text{if $4 < x \leq 8\,;$}\\ 
+		    p(8) + 0\,, & \text{if $8 < x \leq 10\,;$}\\ 
+		    p(10) + (x-10)\times6 \,, & \text{if $10 < x \leq 13\,;$}\\ 
+		    p(13) + (x-13) \times 1 \,, & \text{if $x > 13\,,$}\\ 
+	    \end{dcases}
+	    \label{eq:beat2effective-bps}
+    \end{equation}
+    and its plot can be seen in Figure \ref{fig:position-example}.
+
+
+\begin{figure}[htpb]
+	\centering
+    \begin{tikzpicture}[
+  declare function={
+	  func(\x)= (\x<=4) * (2*\x)  +
+	  and(\x>4, \x<=8) * (8)  +
+     and(\x>8, \x<=10) * 8  +
+     and(\x>10, \x<=13) * (8 + (\x-10)*6) +
+     (\x>13) * (26 + (\x-13)*2);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=30, ytick={0,5,...,30}, ylabel=Position,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Beat,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+\caption{The position at beat 11 will be the area underneeth the function $g$.}
+	\label{fig:position-example}
+\end{figure}
+    \subsection{Formalization}
+
+    Let
+    \begin{equation}
+	    \left\{\left( b_{i}^{(b)},v_{i} \right)\right\}_{i=1}^{n} = \mathcal{B} = B^{(b)} \times V
+	    \label{eq:B}
+    \end{equation}
+    be a sequence of $n$ beat signatures, where $v_i \in V = \{v_j\}_{j=1}^{n}$ is the BPS value at beat $b_i^{(b)} \in B^{(b)} = \{b_i^{(b)}\}_{j=1}^{n}$.
+
+    Let
+
+    \begin{equation}
+	    \left\{ \left( b_{i}^{(s)},s_{i} \right) \right\} _{i=1}^{m} = \mathcal{S} = B^{(s)} \times S
+	    \label{eq:S}
+    \end{equation}
+    be a sequence of $m$ scroll signatures, where $s_i \in S = \{s_j\}_{j=1}^{m}$ is the scroll value at beat $b_i^{(s)} \in B^{(s)}= \{b_j^{(s)}\}_{j=1}^{m}$.
+
+ Let  
+    \begin{equation}
+	    \left\{ \left( b_{i},z_{i} \right) \right\} _{i=1}^{n'} = \mathcal{Z} = B^{(b)} \cup B^{(s)}\times V \cup S
+	    \label{eq:Z}
+    \end{equation}
+    be a sequence of $n'$ BPSs with applied scrolls, where $z_i$ is the effective BPS at beat $b_i$
+    constructed from $\mathcal{S}$ and $\mathcal{B}$ as 
+    \begin{equation}
+	    \mathcal{Z} = \bigcup_{i=1}^{m} \left\{\left( b_i^{(s)},h(b_i^{(s)})\times s_i \right)\right\}\bigcup_{j=1}^{n} 
+	    \begin{dcases}
+		    \left\{ \left( b_j^{(b)}, v_j\times s_i \right)\right\}\,, & \text{if $b_i^{(s)} < b_j^{(b)} < b_{i+1}^{(s)}$}\,; \\
+		    \emptyset\,, & \text{otherwise}\,;
+	    \end{dcases}
+	    \label{eq:Z-construction}
+    \end{equation}
+    where $h: \mathbb{R} \rightarrow \mathbb{R}$ is a function that given a beat, returns the BPS for that beat, and $b_{m+1}^{(s)} := \infty$.
+    We define
+    \begin{equation}
+	    g(x) = \begin{dcases}
+		    z_1\,, & \text{if $ x \leq b_2 $}\,;\\
+		    z_i\,, & \text{if $ b_{i} < x \leq b_{i+1}\,; \quad \forall i=2,\dots,n'$}\,,
+	    \end{dcases}
+	    \label{eq:final-g}
+    \end{equation}
+    as a function that retrieves the effective BPS given a beat, and $ b_{n'+1}:= \infty $. Finally, we define 
+    \begin{equation}
+	    p(x) = \int g(x) dx = \begin{dcases}
+		    xz_1\,, & \text{if $ x \leq b_2 $}\,;\\
+		    p(b_i) + (x-b_i)\times z_i\,, & \text{if $ b_{i} < x \leq b_{i+1}\,; \quad \forall i=2,\dots,n'$}\,,
+	    \end{dcases}
+	    \label{eq:position-final}
+    \end{equation}
+    as the function that retrieves the position given a beat.
+
 \end{document}
-
-
-
-
-
-
 
 
 
