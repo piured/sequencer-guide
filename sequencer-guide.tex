@@ -49,9 +49,136 @@
         \texttt{pepo\_gonba@hotmail.com}\\
     }
     \maketitle
-    
-    
-    \section{From song time to beat}
+   
+    \section{From song time to sequencer time}
+    \subsection{Stepmania definition}
+
+    The \texttt{SSC} file provides two methods of artificially pausing the note scrolling when the song is playing. Those gimmicks are referred as \texttt{\#STOPS} and \texttt{\#DELAYS}. Although there is a subtle difference between them, they are essentially identical w.r.t. the effect that produces.
+
+One STOP definition might look as follows:
+
+\begin{verbatim}
+    #STOPS: 4=5,6=2;
+\end{verbatim}
+
+Let us convert the definition into a JSON-like structure:
+
+    \begin{verbatim}
+  {
+    [
+      beat: 4,
+      stop: 5 
+    ],
+    [
+      beat: 6,
+      stop: 2 
+    ]
+  }
+    \end{verbatim}
+
+    This \texttt{\#STOPS} definition is telling us a couple of things.
+    \begin{enumerate}
+	    \item At beat 4, stop the scrolling for 5 seconds. Then resume.
+	    \item At beat 6, stop the scrolling for 2 seconds. Then resume.
+    \end{enumerate}
+
+Similarly, one DELAY defition could look like this:
+\begin{verbatim}
+    #DELAYS: 4=5,6=2;
+\end{verbatim}
+
+And after converting it into the friendly structure:
+
+    \begin{verbatim}
+  {
+    [
+      beat: 4,
+      delay: 5 
+    ],
+    [
+      beat: 6,
+      delay: 2 
+    ]
+  }
+    \end{verbatim}
+    The \texttt{\#DELAYS} definition above is telling us essentially the same story as the STOPS definition shown before, i.e.: 
+    \begin{enumerate}
+	    \item At beat 4, stop the scrolling for 5 seconds. Then resume.
+	    \item At beat 6, stop the scrolling for 2 seconds. Then resume.
+    \end{enumerate}
+
+    The difference between these to is that notes that lie exactly at the stop/delay beat, will need to be tapped before and after the waiting time for the stops and delays, respectively.
+    \subsection{Challenge}
+
+    We would like to have a function $ t: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops/delays (sequencer time) from the song time as well as the inverse of this function.
+
+
+    \subsection{Solution}
+
+    To do so, let us imagine that we have a function $ f : \mathbb{R}\rightarrow \mathbb{R}$ that given a beat, it calculates the song time. To simplyfy things further, imagine that this song is has constant BPM of 60, so each second is worth 1 beat. Then $ f(b) = b $, being $ b $ a beat.
+
+    Having this in mind, then we can write the piecewise function
+    \begin{equation}
+	    t(x) = \begin{dcases}
+		    x\,, & \text{if $ x \leq f(4) $}\,; \\
+		    4\,, & \text{if $4 <  x \leq 4+5 $}\,; \\
+		    x-5\,, & \text{if $4 + 5 <  x \leq 6 + 5 $}\,; \\
+		    6+5\,, & \text{if $6 + 5 <  x \leq 6 + 5+ 2 $}\,; \\
+		    x-2-5\,, & \text{if $ x > 6+5+2 $}\,; \\
+	    \end{dcases}
+	    \label{l}
+    \end{equation}
+    that will map from song time to sequencer time. A plot of this function can be see in Figure \ref{fig:songtime2seqtime}. 
+
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+    func(\x)= (\x<=4) * \x  +
+     and(\x>4, \x<=9) * 4  +
+     and(\x>9, \x<=11) * (\x-5)  +
+     and(\x>11, \x<=13) * (6)  +
+     (\x>13) * (\x-7);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Sequencer time,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Song time,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+
+
+	\caption{Plot of $t$}
+	\label{fig:songtime2seqtime}
+\end{figure}
+
+\subsection{Formalization}
+
+
+Let $ \mathcal{T} =  \left\{\left( b_i^{(t)}, r_i \right)\right\}_{i=1}^{n} $ be a sequence of STOPS, where $ r_i $ is the stop (measured in seconds) at beat $ b_i^{(t)} $. Let $ f:\mathbb{R}\rightarrow \mathbb{R} $ be a function that retrieves the second from the start of the song given a current beat.
+
+We define a new set 
+\begin{equation}
+	\mathcal{T'} = \left\{\left( c_i, r_i \right)\right\}_{i=1}^{n} = \left\{\left( f\left( b_i^{(t)}\right), r_i \right)\right\}_{i=1}^{n}
+	\label{eq:tprimeset}
+\end{equation}
+where $ c_i $ is the second from the start of the song of beat $ b_i^{(t)} $.
+We define a function $ t: \mathbb{R}\rightarrow \mathbb{R} $
+\begin{equation}
+	t(x) = \begin{dcases}
+		x - \sum_{j=1}^{i-1}r_j\,, & \text{if $ c_{i-1} + \sum_{j=1}^{i-1}r_j < x \leq c_i + \sum_{j=1}^{i-1}r_j\,, \quad \forall i=1,\dots,n$}\,;\\
+		c_i\,, & \text{if $ c_i + \sum_{j=1}^{i-1}r_j < x \leq c_i + \sum_{j=1}^i r_j\,,\quad \forall i=1,\dots,n $}\,;\\
+		x - \sum_{j=i}^n r_j & \text{if $ x > c_n + \sum_{j=1}^n r_j $}\,; 
+	\end{dcases}
+	\label{eq:t}
+\end{equation}
+when $ \mathcal{T'} \neq \emptyset $, where $ c_0 := -\infty $,  that maps from the song time into the sequencer time. Otherwise $ t(x) = x $.
+
+    \section{From sequencer time to beat}
 
     \subsection{Stemania definition}\label{sec:stepmania-definition-time2beat}
     
