@@ -110,7 +110,7 @@ And after converting it into the friendly structure:
     The difference between these to is that notes that lie exactly at the stop/delay beat, will need to be tapped before and after the waiting time for the stops and delays, respectively.
     \subsection{Challenge}
 
-    We would like to have a function $ t: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops/delays (sequencer time) from the song time as well as the inverse of this function.
+    We would like to have a function $ t: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops/delays (sequencer time) from the song time as well as the inverse of this function. Additionally, we would like to have two inverse functions of $ t $, $ t^{-1}_{(s)} $ for STOPS and $ t^{-1}_{(d)} $ for DELAYS.
 
 
     \subsection{Solution}
@@ -129,7 +129,7 @@ And after converting it into the friendly structure:
 	    \label{l}
     \end{equation}
     that will map from song time to sequencer time. A plot of this function can be see in Figure \ref{fig:songtime2seqtime}. 
-
+    
 \begin{figure}[htpb]
 	\centering
 
@@ -150,10 +150,54 @@ And after converting it into the friendly structure:
 \addplot[blue, domain=0:15, samples=400]{func(x)};
 \end{axis}
 \end{tikzpicture} 
-
-
-	\caption{Plot of $t$}
+\caption{Plot of $t$ }
 	\label{fig:songtime2seqtime}
+\end{figure}
+
+    We can calculate the two different inverse functions of $ t(x) $ to model when notes at stops or delays should be tapped w.r.t. the song time. We can write the function
+
+    \begin{equation}
+	    t^{-1}_{(s)}(x) =\begin{dcases}
+		    x\,, &\text{if $ x \leq 4 $}\,;\\
+		    x+5\,,& \text{if $ 4 < x \leq 6 $}\,;\\
+		    x+5+2\,,& \text{if $ x > 6 $}\,;\\
+	    \end{dcases}
+	    \label{eq:tostops}
+    \end{equation}
+    to map from the sequencer time into song time for STOPS. Similarly, the function
+
+    \begin{equation}
+	    t^{-1}_{(d)}(x) =\begin{dcases}
+		    x\,, &\text{if $ x < 4 $}\,;\\
+		    x+5\,,& \text{if $ 4 \leq x < 6 $}\,;\\
+		    x+5+2\,,& \text{if $ x \geq 6 $}\,;\\
+	    \end{dcases}
+	    \label{eq:todelays}
+    \end{equation}
+    will map from the sequencer time into the song time for DELAYS. Note that the signs at the conditions are slightly different.
+
+
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+    func(\x)= (\x<=4) * \x  +
+    and(\x>4, \x<=6) * (\x+5)   +
+     (\x>6) * (\x+5+2);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Song time,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Sequencer time,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+
+\caption{Plot of $t^{-1}$ }
+	\label{fig:seqtime2songtime}
 \end{figure}
 
 \subsection{Formalization}
@@ -167,7 +211,7 @@ We define a new set
 	\label{eq:tprimeset}
 \end{equation}
 where $ c_i $ is the second from the start of the song of beat $ b_i^{(t)} $.
-We define a function $ t: \mathbb{R}\rightarrow \mathbb{R} $
+We define the function $ t: \mathbb{R}\rightarrow \mathbb{R} $
 \begin{equation}
 	t(x) = \begin{dcases}
 		x - \sum_{j=1}^{i-1}r_j\,, & \text{if $ c_{i-1} + \sum_{j=1}^{i-1}r_j < x \leq c_i + \sum_{j=1}^{i-1}r_j\,, \quad \forall i=1,\dots,n$}\,;\\
@@ -176,8 +220,25 @@ We define a function $ t: \mathbb{R}\rightarrow \mathbb{R} $
 	\end{dcases}
 	\label{eq:t}
 \end{equation}
-when $ \mathcal{T'} \neq \emptyset $, where $ c_0 := -\infty $,  that maps from the song time into the sequencer time. Otherwise $ t(x) = x $.
+when $ \mathcal{T'} \neq \emptyset $, where $ c_0 := -\infty $,  that maps from the song time into the sequencer time. 
 
+We define the function $ t_{(s)}^{-1}: \mathbb{R}\rightarrow \mathbb{R} $
+\begin{equation}
+	t_{(s)}^{-1}(x) = \begin{dcases}
+		x\,, & \text{if $ x \leq c_1 $}\,;\\
+		x+ \sum_{j=1}^{i}r_i\,, & \text{if $ c_i < x \leq c_{i+1}\,,\quad \forall i=1,\dots,n$}\,;\\
+	\end{dcases}
+	\label{eq:t-1s}
+\end{equation}
+with $ c_{i+1} := \infty $ which maps from the sequencer time into the song time for the STOPS, if $ \mathcal{T'} \neq \emptyset $, and the function $ t_{(d)}^{-1}: \mathbb{R}\rightarrow \mathbb{R} $
+\begin{equation}
+	t_{(d)}^{-1}(x) = \begin{dcases}
+		x\,, & \text{if $ x < c_1 $}\,;\\
+		x+ \sum_{j=1}^{i}r_i\,, & \text{if $ c_i \leq x < c_{i+1}\,,\quad \forall i=1,\dots,n$}\,;\\
+	\end{dcases}
+	\label{eq:t-1s}
+\end{equation}
+that maps from the sequencer time into the song time for the DELAYS, if $ \mathcal{T'}\neq \emptyset $. If $ \mathcal{T'} = \emptyset $, then $ t(x) = t_{(s)}^{-1}(x) = t_{(d)}^{-1} (x) = x $.
     \section{From sequencer time to beat}
 
     \subsection{Stemania definition}\label{sec:stepmania-definition-time2beat}
@@ -383,11 +444,11 @@ Let $ f: \mathbb{R} \rightarrow \mathbb{R} $ be a function that provided a beat,
     \end{equation}
     where $g = f^{-1}$.
 
-    \section{From beat to position}
+    \section{From beat to note position}
 
     \subsection{Stepmania definition}
 
-    There are a pair of stepmania definitions that influence the position where notes should be placed on the screen. One of them is \texttt{\#BPMS}, which arguably is the rate at what notes travel upwards towards the receptor w.r.t. to the music rhythm. As well see later on, we will consider the BPMS as a speed function from which we can discover the position of anote given the beat it should be pressed. As a toy example, we will use the same definition as provided in Section \ref{sec:stepmania-definition-time2beat}. 
+    There are a pair of stepmania definitions that influence the position where notes should be placed on the screen. One of them is \texttt{\#BPMS}, which arguably is the rate at what notes travel upwards towards the receptor w.r.t. to the music rhythm. As well see later on, we will consider the BPMS as a speed function from which we can discover the position of a note given the beat it should be tapped. As a toy example, we will use the same definition as provided in Section \ref{sec:stepmania-definition-time2beat}. 
 
     However, there is another gimmick that plays a role in the note positioning: \texttt{\#SCROLLS}. Let's have a look at an example:
 
@@ -549,7 +610,7 @@ The resulting integral of $g(x)$ in our toy example is
 \addplot[blue, domain=0:15, samples=400]{func(x)};
 \end{axis}
 \end{tikzpicture} 
-\caption{The position at beat 11 will be the area underneeth the function $g$.}
+\caption{Plot of $ p $}
 	\label{fig:position-example}
 \end{figure}
     \subsection{Formalization}
