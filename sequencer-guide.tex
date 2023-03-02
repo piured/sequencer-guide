@@ -110,16 +110,16 @@ And after converting it into the friendly structure:
     The difference between these to is that notes that lie exactly at the stop/delay beat, will need to be tapped before and after the waiting time for the stops and delays, respectively.
     \subsection{Challenge}
 
-    We would like to have a function $ t: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops/delays (sequencer time) from the song time as well as the inverse of this function. Additionally, we would like to have two inverse functions of $ t $, $ t^{-1}_{(s)} $ for STOPS and $ t^{-1}_{(d)} $ for DELAYS.
+    We would like to have a pair of functions $ t_{(s)}, t_{(d)}: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops and delays (sequencer time) from the song time. Additionally, we would like to have two inverse functions of $ t_{(s)}, t_{(d)} $, $ t^{-1}_{(s)} $ for STOPS and $ t^{-1}_{(d)} $ for DELAYS so we are able to map from the sequencer time into the song time.
 
 
     \subsection{Solution}
 
     To do so, let us imagine that we have a function $ f : \mathbb{R}\rightarrow \mathbb{R}$ that given a beat, it calculates the song time. To simplyfy things further, imagine that this song is has constant BPM of 60, so each second is worth 1 beat. Then $ f(b) = b $, being $ b $ a beat.
 
-    Having this in mind, then we can write the piecewise function
+    Having this in mind, then we can write the piecewise functions
     \begin{equation}
-	    t(x) = \begin{dcases}
+	    t_{(s)}(x) = t_{(d)}(x) = \begin{dcases}
 		    x\,, & \text{if $ x \leq f(4) $}\,; \\
 		    4\,, & \text{if $4 <  x \leq 4+5 $}\,; \\
 		    x-5\,, & \text{if $4 + 5 <  x \leq 6 + 5 $}\,; \\
@@ -128,7 +128,7 @@ And after converting it into the friendly structure:
 	    \end{dcases}
 	    \label{l}
     \end{equation}
-    that will map from song time to sequencer time. A plot of this function can be see in Figure \ref{fig:songtime2seqtime}. 
+    that will map from song time to sequencer time for the STOPS and DELAYS, respectively. A plot of this function can be see in Figure \ref{fig:songtime2seqtime}. 
     
 \begin{figure}[htpb]
 	\centering
@@ -150,11 +150,11 @@ And after converting it into the friendly structure:
 \addplot[blue, domain=0:15, samples=400]{func(x)};
 \end{axis}
 \end{tikzpicture} 
-\caption{Plot of $t$ }
+\caption{Plot of $t_{(d)}$ }
 	\label{fig:songtime2seqtime}
 \end{figure}
 
-    We can calculate the two different inverse functions of $ t(x) $ to model when notes at stops or delays should be tapped w.r.t. the song time. We can write the function
+We can also easily  calculate the two different inverse functions to model when notes at stops or delays should be tapped w.r.t. the song time. On the one hand side, we write the function
 
     \begin{equation}
 	    t^{-1}_{(s)}(x) =\begin{dcases}
@@ -203,7 +203,7 @@ And after converting it into the friendly structure:
 \subsection{Formalization}
 
 
-Let $ \mathcal{T} =  \left\{\left( b_i^{(t)}, r_i \right)\right\}_{i=1}^{n} $ be a sequence of STOPS, where $ r_i $ is the stop (measured in seconds) at beat $ b_i^{(t)} $. Let $ f:\mathbb{R}\rightarrow \mathbb{R} $ be a function that retrieves the second from the start of the song given a current beat.
+Let $ \mathcal{T} =  \left\{\left( b_i^{(t)}, r_i \right)\right\}_{i=1}^{n} $ be a sequence of STOPS or DELAYS, where $ r_i $ is the stop or delay(measured in seconds) at beat $ b_i^{(t)} $. Let $ f:\mathbb{R}\rightarrow \mathbb{R} $ be a function that retrieves the second from the start of the song given a current beat.
 
 We define a new set 
 \begin{equation}
@@ -211,9 +211,9 @@ We define a new set
 	\label{eq:tprimeset}
 \end{equation}
 where $ c_i $ is the second from the start of the song of beat $ b_i^{(t)} $.
-We define the function $ t: \mathbb{R}\rightarrow \mathbb{R} $
+We define the functions $ t_{(s)}, t_{(d)}: \mathbb{R}\rightarrow \mathbb{R} $
 \begin{equation}
-	t(x) = \begin{dcases}
+	t_{(s)}(x) = t_{(d)}(x) = \begin{dcases}
 		x - \sum_{j=1}^{i-1}r_j\,, & \text{if $ c_{i-1} + \sum_{j=1}^{i-1}r_j < x \leq c_i + \sum_{j=1}^{i-1}r_j\,, \quad \forall i=1,\dots,n$}\,;\\
 		c_i\,, & \text{if $ c_i + \sum_{j=1}^{i-1}r_j < x \leq c_i + \sum_{j=1}^i r_j\,,\quad \forall i=1,\dots,n $}\,;\\
 		x - \sum_{j=i}^n r_j & \text{if $ x > c_n + \sum_{j=1}^n r_j $}\,; 
@@ -238,7 +238,8 @@ with $ c_{i+1} := \infty $ which maps from the sequencer time into the song time
 	\end{dcases}
 	\label{eq:t-1s}
 \end{equation}
-that maps from the sequencer time into the song time for the DELAYS, if $ \mathcal{T'}\neq \emptyset $. If $ \mathcal{T'} = \emptyset $, then $ t(x) = t_{(s)}^{-1}(x) = t_{(d)}^{-1} (x) = x $.
+that maps from the sequencer time into the song time for the DELAYS, if $ \mathcal{T'}\neq \emptyset $. If $ \mathcal{T'} = \emptyset $, then $ t_{(s)}(x) = t_{(s)}^{-1}(x) = x$ and $t_{(d)}(x) = t_{(d)}^{-1} (x) = x $, for STOPS and DELAYS respectively.
+The final mapping from song time into sequencer time is the composition of $t_{(d)}$ and $ t_{(s)} $, $ t_{(d)}\circ t_{(s)} $. Similarly, the mapping from sequencer time into the song time is $ t_{(s)}^{-1}\circ 1_{(d)}^{-1} $.
     \section{From sequencer time to beat}
 
     \subsection{Stemania definition}\label{sec:stepmania-definition-time2beat}
