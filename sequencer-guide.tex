@@ -664,6 +664,72 @@ The resulting integral of $g(x)$ in our toy example is
 	    \label{eq:position-final}
     \end{equation}
     as the function that retrieves the position given a beat.
+    \section{From beat to scroll}
+    \subsection{Stepmania definition}
+    Another issue that we might have is to know how far upwards we should scroll the notes from its original position given the current beat. If we did not have any other gimmicks, this would be very easy to compute. Let us suppose that the notes redendered in the screen are squares of one unity of length and height, and that one beat is worth one distance of separation, as shown in Figure \ref{fig:notes-layout}.
+    \begin{figure}[htpb]
+	    \centering
+	    \includegraphics[width=0.3\linewidth]{beat2scroll}
+	    \caption{Two notes inside with their respective bounding boxes separeted apart by one beat.}
+	    \label{fig:notes-layout}
+    \end{figure}
+    In this set up, the amount of scroll that we have to apply for a given beat $ x $ is just $ -x $ (if we were scrolling upwards, on the $y$ axis).
+
+	    However there are two gimmicks that modify this scroll function in two different ways: \texttt{\#WARPS} and \texttt{\#SPEEDS}. Let us see and example to know what these modifiers do. Suppose we have the following \texttt{\#WARPS} definition:
+    \begin{verbatim}
+    #WARPS:4=2;     
+    \end{verbatim}
+    It is equivalent to this one:
+    \begin{verbatim}
+  {
+    [
+      beat: 4,
+      warp: 2
+    ]
+  }
+    \end{verbatim}
+    As it turns out, this gimmick is telling us the following information:
+    \begin{enumerate}
+	    \item At beat 4, warp over the next 2 following beats, i.e. skip two beats.
+	    \item Notes with beats in the range $ [4, 4+2) = [4,6) $ will become fake notes.
+    \end{enumerate}
+    
+    On the other hand, suppose we have the following \texttt{\#SPEEDS} definition:
+    \begin{verbatim}
+    #SPEEDS:4=2=1=0,6=0.5=1=1;     
+    \end{verbatim}
+    which is equivalent to this one:
+    \begin{verbatim}
+  {
+    [
+      beat: 0,
+      speed: 1,
+      span: 0,
+      type: 0
+    ],
+    [
+      beat: 6,
+      speed: 2 ,
+      span: 1,
+      type: 1
+    ]
+  }
+    \end{verbatim}
+ 
+    Well, the information provided with this gimmick is the following:
+    \begin{enumerate}
+	    \item From beat 0 on, the separation between notes increases by a factor of 1, the scrolling speed also increases by a factor of 1, and because the \texttt{type} is \texttt{0},  this transition is smoothly applied in the span of 0 \textbf{beats}.
+	    \item From beat 6 on, the separation between notes increases by a factor of 2, the scrolling speed also increases by a factor of 2, and because the \texttt{type} is \texttt{1}, this transition is smoothly applied in the span of 1 \textbf{second}.
+    \end{enumerate}
+
+    \subsection{Challenge}
+
+    We would like to have a function $ q: \mathbb{R}\rightarrow \mathbb{R} $ that calculates the scroll value for a given beat, as well as a function $ e: \mathbb{R}\rightarrow \mathbb{R} $ that calculates the speed factor at a given beat.
+
+    \subsection{Solution}
+
+    First, let us deal with the problem of the WARPS. We would need to create a function $  $ that maps from beats to warped beats first, so we could retrieve the real scroll value w.r.t. it.
+    Actually, the function that we are looking for, it is pretty much identical to that shown in Figure \ref{seqtime2songtime}. For our toy example, this function will look like
 
 \end{document}
 
