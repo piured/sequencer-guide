@@ -703,7 +703,7 @@ The resulting integral of $g(x)$ in our toy example is
     ],
     [
       beat: 6,
-      speed: 2 ,
+      speed: 7 ,
       span: 1,
       type: 1
     ]
@@ -713,7 +713,7 @@ The resulting integral of $g(x)$ in our toy example is
     Well, the information provided with this gimmick is the following:
     \begin{enumerate}
 	    \item From beat 0 on, the separation between notes increases by a factor of 1, the scrolling speed also increases by a factor of 1, and because the \texttt{type} is \texttt{0},  this transition is smoothly applied in the span of 0 \textbf{beats}.
-	    \item From beat 6 on, the separation between notes increases by a factor of 2, the scrolling speed also increases by a factor of 2, and because the \texttt{type} is \texttt{1}, this transition is smoothly applied in the span of 1 \textbf{second}.
+	    \item From beat 6 on, the separation between notes increases by a factor of 7, the scrolling speed also increases by a factor of 7, and because the \texttt{type} is \texttt{1}, this transition is smoothly applied in the span of 1 \textbf{second}.
     \end{enumerate}
 
     \subsection{Challenge}
@@ -722,6 +722,7 @@ The resulting integral of $g(x)$ in our toy example is
 
     \subsection{Solution}
 
+    \paragraph{Warps}
     First, let us deal with the problem of the WARPS. We would need to create a function that maps from beats to warped beats first, so we could retrieve the real scroll value w.r.t. it.
     Actually, the function that we are looking foris pretty much identical to that shown in Figure \ref{fig:seqtime2songtime}
     \begin{equation}
@@ -785,6 +786,43 @@ also is very similar to how we calculated $ t_{(s)}^{-1} $ in Section \ref{sec:s
 \caption{Plot of $ q^{-1} $}
 	\label{fig:warps-example-inverse}
 \end{figure}
+
+\paragraph{Speeds}
+
+The function that we need to come up for the speeds is simple as well. However, it gets a bit complicated when dealing with speeds of \texttt{type} 1:
+Since we are working at the beat space, we need somehow to convert a span of seconds into a span of beats so we can perform operations in the same units. We do so by mapping a given beat into the song time space, then add the span of seconds, and then mapping back into the beat space. To keep things simple, let us imagine that we are running a 60 BPM song with no delays or stops.
+In this particular case, we can write 
+\begin{equation}
+	e(x) = \begin{dcases}
+		1\,, & \text{if $ x \leq 6 $}\,;\\
+		\frac{7-1}{1}(x-6)+1\,, & \text{if $ 6 < x \leq 6+1 $}\,;\\
+		7\,, & \text{if $ x > 6+1 $}\,.
+	\end{dcases}
+	\label{eq:example-speeds}
+\end{equation}
+
+\begin{figure}[htpb]
+	\centering
+    \begin{tikzpicture}[
+  declare function={
+	  func(\x)= (\x<=6) * (1)  +
+	  and(\x>6, \x<=7) * (((7-1)/(1))*(\x -6)+1)+
+	  (\x>7) * (7);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Speed,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Beat
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+\caption{Plot of $ e $}
+	\label{fig:speeds-example}
+\end{figure}
+
+
 \subsection{Formalization}
 
 \paragraph{Warps}
@@ -826,7 +864,7 @@ We define a new sequence $ \mathcal{E'} =  \left\{\left( b_i^{(e)}, s_i, p'_i \r
 \end{equation}
 where 
 \begin{equation}
-	g(p,b) =f \circ t_{(s)} \circ t_{(d)} \left(  t_{(d)}^{-1} \circ  t_{(s)}^{-1} \circ f^{-1}(b) + p \right)\,.
+	g(p,b) =\left( f \circ t_{(s)} \circ t_{(d)}  \right)\left(  \left( t_{(d)}^{-1} \circ  t_{(s)}^{-1} \circ f^{-1} \right)(b) + p \right)\,.
 	\label{eq:iureio}
 \end{equation}
 
@@ -834,7 +872,7 @@ We define the function $ e:\mathbb{B}\rightarrow \mathbb{E} $
 \begin{equation}
 	e(x) = \begin{dcases}
 		s_1\,, & \text{if $ x\leq b_1^{(e)} $}\,;\\
-		\frac{s_i-s_{i-1}}{p'_i} \left( x-b_{i}^{(e)} \right) \,, & \text{if $ b_{i}^{(e)} < x \leq b_{i}^{(e)}+p'_i \land p'_i \neq 0\,,\quad \forall i=1,\dots,n$}\,;\\
+		\frac{s_i-s_{i-1}}{p'_i} \left( x-b_{i}^{(e)} \right)+s_{i-1} \,, & \text{if $ b_{i}^{(e)} < x \leq b_{i}^{(e)}+p'_i \land p'_i \neq 0\,,\quad \forall i=1,\dots,n$}\,;\\
 		s_i\,, &\text{if $ b_{i}^{(e)}+p'_i < x \leq b_{i+1}^{(e)}\,,\quad \forall i=1,\dots,n$}\,,\\
 	\end{dcases}
 	\label{eq:e}
@@ -842,13 +880,11 @@ We define the function $ e:\mathbb{B}\rightarrow \mathbb{E} $
 where $ b_{n+1}^{(e)} := \infty $, and $ s_0 := s_1 $.
 
 
+\section{Positioning and scrolling notes}
 
+Alright! Now we have formally defined everything we need to build a sequencer using stepmania's notation. This section will show how to use all functions defined formally in the sections above to determine where to draw the notes in the screen at any given song time. 
 
-
-    \appendix
-
-    \section{Table of functions and spaces}
-
+To ease the understanding, Table \ref{tab:symbol-table} gathers all the functions that we are going to need as well as a brief descripcion for each one of them.
 
     \begin{table}[htbp]
 	    \centering
@@ -871,10 +907,37 @@ where $ b_{n+1}^{(e)} := \infty $, and $ s_0 := s_1 $.
 		    $ q $ & Function $ q: \mathbb{B}\rightarrow \mathbb{T} $ that maps from the beat space into the translation space.\\
 		    $ q^{-1} $ & Function $ q^{-1}: \mathbb{T}\rightarrow \mathbb{B} $ that maps from the translation space into the beat space.\\
 		    $ e $ & Function $ e: \mathbb{B}\rightarrow \mathbb{E} $ that maps from the beat space into the speed space.\\
+		    \bottomrule
 	    \end{tabular}
-	    \caption{Table of symbols}
+	    \caption{Table of functions and spaces.}
 	    \label{tab:symbol-table}
     \end{table}
+
+    We will take the following assumptions:
+    \begin{enumerate}
+	    \item We are modeling a rhythm game whose notes scroll upwards.
+	    \item The receptor is placed at the origin of the scrolling axis.
+	    \item The beat 0 has a position 0 in the scrolling axis.
+    \end{enumerate}
+
+    Let $ \mathcal{N} =  \left\{ \left( u_{i} \right) \right\}_{i=1}^{n} $ be a sequence of notes where $ u_{i} $ is the beat when the $ i $-th note should be tapped. We define a new set 
+    \begin{equation}
+	    \mathcal{N'} = \left\{ \left( u_{i}, v_i, w_i \right) \right\} = \bigcup_{\{u\}\in \mathcal{N}} \left\{ \left(u, g(u), p(u) \right) \right\}
+	    \label{eq:set}
+    \end{equation}
+    where $ g: \mathbb{T}\rightarrow \mathbb{S} $
+    \begin{equation}
+	    g(x) = \left( t_{(d)}^{-1}\circ t_{(s)}^{-1}\circ f^{-1}\circ q^{-1} \right)(x)\,,
+	    \label{eq:final-g}
+    \end{equation}
+    $ v_i $ is the exact time where the $ i $-th note should be tapped, and $ w_i $ is its relative position at beat 0 in the scrolling axis.
+    At a given moment in time $ t $ w.r.t. to the begginig of the song, the $ i $-th note should be positioned at
+    \begin{equation}
+	    \left[ w_i - \left( q\circ f\circ t_{(s)}\circ t_{(d)} \right)(t) \right] \times \left( e\circ q\circ f\circ t_{(s)}\circ t_{(d)} \right)(t)\,.
+	    \label{eq:final-position}
+    \end{equation}
+
+
 \end{document}
 
 
