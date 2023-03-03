@@ -43,16 +43,25 @@
 
 \begin{document}
     
-    \title{A guide to understand Stepmania's gimmicks}
+\title{A guide to understand and build a sequencer for a rhythm game using Stepmania's \texttt{SSC} definitions}
     \author{
         Pedro G. Bascoy\\
         \texttt{pepo\_gonba@hotmail.com}\\
     }
     \maketitle
 
+This guide aims to assist anyone in creating a sequencer for a rhythm game. A sequencer is a software that manages two crucial aspects of any rhythm game:
+    \begin{enumerate}
+	    \item The timing of when the notes should be tapped concerning the beginning of the song.
+	    \item The placement of the notes at any given time.
+    \end{enumerate}
+
+In this guide, we will delve into these two aspects when introducing gimmicks in the game. Gimmicks are alterations in these two aspects that provide additional (usually aesthetic) possibilities to step makers. Specifically, we will examine the StepMania approach to defining the settings required to set up a sequencer. Each definition will be analyzed in its own separate section, with examples provided, and mathematical formalism that can be easily implemented in the programming language of your choice at the end of each section.
+
+This document's sections will focus on two or, at most, three mathematical spaces and the gimmicks that allow transformation from one space to another.
    
     \section{From song time to sequencer time}\label{sec:songtime2seqtime}
-    \subsection{Stepmania definition}
+    \subsection{Introduction}
 
     The \texttt{SSC} file provides two methods of artificially pausing the note scrolling when the song is playing. Those gimmicks are referred as \texttt{\#STOPS} and \texttt{\#DELAYS}. Although there is a subtle difference between them, they are essentially identical w.r.t. the effect that produces.
 
@@ -108,7 +117,7 @@ And after converting it into the friendly structure:
 	    \item At beat 6, stop the scrolling for 2 seconds. Then resume.
     \end{enumerate}
 
-    The difference between these to is that notes that lie exactly at the stop/delay beat, will need to be tapped before and after the waiting time for the stops and delays, respectively.
+    The difference between these two is that notes that lie exactly at the stop/delay beat, will need to be tapped before and after the waiting time for the stops and delays, respectively.
     \subsection{Challenge}
 
     We would like to have a pair of functions $ t_{(s)}, t_{(d)}: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops and delays (sequencer time) from the song time. Additionally, we would like to have two inverse functions of $ t_{(s)}, t_{(d)} $, $ t^{-1}_{(s)} $ for STOPS and $ t^{-1}_{(d)} $ for DELAYS so we are able to map from the sequencer time into the song time.
@@ -243,11 +252,11 @@ that maps from the sequencer time into the song time for the DELAYS, if $ \mathc
 The final mapping from song time into sequencer time is the composition of $t_{(d)}$ and $ t_{(s)} $, $ t_{(d)}\circ t_{(s)} $. Similarly, the mapping from sequencer time into the song time is $ t_{(s)}^{-1}\circ 1_{(d)}^{-1} $.
     \section{From sequencer time to beat}
 
-    \subsection{Stemania definition}\label{sec:stepmania-definition-time2beat}
+    \subsection{Introduction}\label{sec:stepmania-definition-time2beat}
     
     A \texttt{SSC} file gives a list of pairs which defines the bpms. The first item in the pair is the target beat, and the second item is the desired BPM from that beat on. Let us imagine we have a \texttt{SSC} file with the following definition:
     \begin{verbatim}
-    #BPMS:0,120:8,70:13,200;     
+    #BPMS:0=120,8=70,13=200;     
     \end{verbatim}
     Let us convert this cumbersome definition into a friendly structure:
     \begin{verbatim}
@@ -441,7 +450,7 @@ Let $ f^{-1}: \mathbb{B} \rightarrow \mathbb{S^{*}} $ be a function that provide
 
     \section{From beat to note position}
 
-    \subsection{Stepmania definition}
+    \subsection{Introduction}
 
     There are a pair of stepmania definitions that influence the position where notes should be placed on the screen. One of them is \texttt{\#BPMS}, which arguably is the rate at what notes travel upwards towards the receptor w.r.t. to the music rhythm. As well see later on, we will consider the BPMS as a speed function from which we can discover the position of a note given the beat it should be tapped. As a toy example, we will use the same definition as provided in Section \ref{sec:stepmania-definition-time2beat}. 
 
@@ -659,7 +668,7 @@ The resulting integral of $g(x)$ in our toy example is
     \end{equation}
     as the function that retrieves the position given a beat.
     \section{From beat to scroll}
-    \subsection{Stepmania definition}
+    \subsection{Introduction}
     Another issue that we might have is to know how far upwards we should scroll the notes from its original position given the current beat. If we did not have any other gimmicks, this would be very easy to compute. Let us suppose that the notes redendered in the screen are squares of one unity of length and height, and that one beat is worth one distance of separation, as shown in Figure \ref{fig:notes-layout}.
     \begin{figure}[htpb]
 	    \centering
