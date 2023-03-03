@@ -1,4 +1,4 @@
-# A guide to understand and build a sequencer for a rhythm gameusing Stepmania’sSSCdefinitions
+# A guide to understand and build a sequencer for a rhythm game using Stepmania’s `SSC` definitions
 
 This guide aims to assist anyone in creating a sequencer for a rhythm
 game. A sequencer is a software that manages two crucial aspects of any
