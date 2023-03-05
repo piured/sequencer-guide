@@ -63,9 +63,9 @@ This document's sections will focus on two or, at most, three mathematical space
     \section{From song time to sequencer time}\label{sec:songtime2seqtime}
     \subsection{Introduction}
 
-    The \texttt{SSC} file provides two methods of artificially pausing the note scrolling when the song is playing. Those gimmicks are referred as \texttt{\#STOPS} and \texttt{\#DELAYS}. Although there is a subtle difference between them, they are essentially identical w.r.t. the effect that produces.
+    The \texttt{SSC} format provides three gimmicks to artificially skip or pause the note scrolling when the song is playing. Those gimmicks are \texttt{\#WARPS}, \texttt{\#STOPS}, and \texttt{\#DELAYS}. WARP gimmicks are concerned with skipping part of the song along with its notes (rendering them as fake notes). STOPS and DELAYS are gimmicks that allow to stop the scrolling of the song for a certain amount of time. Although there is a subtle difference between them, they are essentially identical w.r.t. the effect that produces. Let us review them one by one to see what each one of them is doing.
 
-One STOP definition might look as follows:
+One STOPS definition might look as follows:
 
 \begin{verbatim}
     #STOPS: 4=5,6=2;
@@ -86,13 +86,13 @@ Let us convert the definition into a JSON-like structure:
   }
     \end{verbatim}
 
-    This \texttt{\#STOPS} definition is telling us a couple of things.
+    This \texttt{\#STOPS} gimmick is telling us a couple of things.
     \begin{enumerate}
 	    \item At beat 4, stop the scrolling for 5 seconds. Then resume.
 	    \item At beat 6, stop the scrolling for 2 seconds. Then resume.
     \end{enumerate}
 
-Similarly, one DELAY defition could look like this:
+Similarly, one DELAYS defition could look like this:
 \begin{verbatim}
     #DELAYS: 4=5,6=2;
 \end{verbatim}
@@ -117,17 +117,88 @@ And after converting it into the friendly structure:
 	    \item At beat 6, stop the scrolling for 2 seconds. Then resume.
     \end{enumerate}
 
-    The difference between these two is that notes that lie exactly at the stop/delay beat, will need to be tapped before and after the waiting time for the stops and delays, respectively.
-    \subsection{Challenge}
+    The difference between these two is that notes that lie exactly at the stop and delay beat, will need to be tapped before and after the waiting time for the stops and delays, respectively.
 
-    We would like to have a pair of functions $ t_{(s)}, t_{(d)}: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops and delays (sequencer time) from the song time. Additionally, we would like to have two inverse functions of $ t_{(s)}, t_{(d)} $, $ t^{-1}_{(s)} $ for STOPS and $ t^{-1}_{(d)} $ for DELAYS so we are able to map from the sequencer time into the song time.
+
+    Finally, suppose we have the following WARPS definition:
+    \begin{verbatim}
+    #WARPS:2=1,3=2;     
+    \end{verbatim}
+    It is equivalent to this one:
+    \begin{verbatim}
+  {
+    [
+      beat: 2,
+      warp: 1
+    ],
+    [
+      beat: 3,
+      warp: 2
+    ]
+  }
+    \end{verbatim}
+    As it turns out, this gimmick is telling us the following information:
+    \begin{enumerate}
+	    \item At beat 2, warp over the next 1 beat, i.e. skip one beat. Notes with beats in the range $ [2, 3+1) = [2,3) $ will become fake notes.
+	    \item At beat 3, warp over the next 2 following beats, i.e. skip two beats. Notes with beats in the range $ [3, 3+2) = [3,5) $ will become fake notes.
+    \end{enumerate}
+    Note that with this example definition, we could write an equivalente WARP definition that would produce the same result:
+    \begin{verbatim}
+    #WARPS:2=3;     
+    \end{verbatim}
+
+    \subsection{Challenge}
+    First, we would like to have a function $ q: \mathbb{R}\rightarrow \mathbb{R} $ that maps the song time into the warped song time (i.e. song time with skips), as well as its inverse $ q^{-1}:\mathbb{R}\rightarrow \mathbb{R}  $ that maps from the warped song time into the song time.
+    Additionally, we would like to have a pair of functions $ t_{(s)}: \mathbb{R} \rightarrow \mathbb{R}$, and $ t_{(d)}: \mathbb{R} \rightarrow \mathbb{R} $ that would retrieve the song time after stops and delays (sequencer time) from the song time. Additionally, we would like to have two inverse functions of $ t_{(s)}, t_{(d)} $, $ t^{-1}_{(s)} $ for STOPS and $ t^{-1}_{(d)} $ for DELAYS so we are able to map from the sequencer time into the song time.
 
 
     \subsection{Solution}
 
-    To do so, let us imagine that we have a function $ f : \mathbb{R}\rightarrow \mathbb{R}$ that given a beat, it calculates the song time. To simplyfy things further, imagine that this song is has constant BPM of 60, so each second is worth 1 beat. Then $ f(b) = b $, being $ b $ a beat.
+    To do so, let us imagine that we have a function $ f^{-1} : \mathbb{R}\rightarrow \mathbb{R}$ that given a beat calculates the song time at that beat. To simplyfy things further, imagine that this song is has constant BPM of 60, so each second is worth 1 beat. Then $ f^{-1}(b) = b $, being $ b $ a beat.
 
-    Having this in mind, then we can write the piecewise functions
+    Alright, under this assumption, we can start working out a function for the WARPS gimmick. One problem that we might have is while  WARPS are defined in the beat space, as we saw earlier, they act in the song time space. This is very counterintuitive -- We are not actually skipping beats, but we are actually skipping seconds. That is why we would need a function (in the real life) $ f^{-1} $ to convert from one space to the other. Actually, all the functions that we are going to define in the ``Formalization'' sections throughout this document are just mappings from one space to the other. This function $ f^{-1} $ that I am referring to will be described later on.
+
+    Anyways, given that our BPM is 60, beats are equivalent to seconds -- this is just to keep it simple enough. Knowing this, we can write the function 
+    \begin{equation}
+	    q(x) = \begin{dcases}
+		    x\,, & \text{if $ x \leq 2 $}\,;\\
+		    x+1\,, & \text{if $2-0 <  x \leq 3-1 $}\,;\\
+		    x+1+2\,, & \text{if $ x > 3-1  $}\,;\\
+	    \end{dcases}
+    \end{equation}
+    that will skip from beat 2 to beat 3, and from beat 3 to beat 5. You can see the plot of this function in Figure \ref{fig:wwarps}.
+\begin{figure}[htpb]
+	\centering
+
+    \begin{tikzpicture}[
+  declare function={
+    func(\x)= (\x<=2) * \x  +
+     (\x>2) * (\x+3);
+  }
+]
+\begin{axis}[
+  axis x line=middle, axis y line=middle,
+  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Warped song time,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Song time,
+]
+\addplot[blue, domain=0:15, samples=400]{func(x)};
+\end{axis}
+\end{tikzpicture} 
+\caption{Plot of $q$ }
+	\label{fig:wwarps}
+\end{figure}
+
+Great! The inverse function
+
+    \begin{equation}
+	    q^{-1}(x) = \begin{dcases}
+		    x\,, & \text{if $ x \leq 2 $}\,;\\
+		    2\,, & \text{if $2 <  x \leq 2+1 $}\,;\\
+		    2\,, & \text{if $3 <  x \leq 3+2 $}\,;\\
+		    x - 2 - 1\,, & \text{if $x > 3+2 $}\,;\\
+	    \end{dcases}
+    \end{equation}
+    will just do the opposite, i.e. unskipping the skipped beats. Next, let us deal with STOPS and DELAYS. Keeping the assumption that BPM is 60, then we can write the piecewise functions
     \begin{equation}
 	    t_{(s)}(x) = t_{(d)}(x) = \begin{dcases}
 		    x\,, & \text{if $ x \leq 4 $}\,; \\
@@ -138,7 +209,7 @@ And after converting it into the friendly structure:
 	    \end{dcases}
 	    \label{l}
     \end{equation}
-    that will map from song time to sequencer time for the STOPS and DELAYS, respectively. A plot of this function can be see in Figure \ref{fig:songtime2seqtime}. 
+    that will map from the warped song time to sequencer time for the STOPS and DELAYS, respectively. A plot of this function can be see in Figure \ref{fig:songtime2seqtime}. 
     
 \begin{figure}[htpb]
 	\centering
@@ -155,7 +226,7 @@ And after converting it into the friendly structure:
 \begin{axis}[
   axis x line=middle, axis y line=middle,
   ymin=0, ymax=15, ytick={0,...,15}, ylabel=Sequencer time,
-  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Song time,
+  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Warped song time,
 ]
 \addplot[blue, domain=0:15, samples=400]{func(x)};
 \end{axis}
@@ -174,7 +245,7 @@ We can also easily  calculate the two different inverse functions to model when 
 	    \end{dcases}
 	    \label{eq:tostops}
     \end{equation}
-    to map from the sequencer time into song time for STOPS. Similarly, the function
+    to map from the sequencer time into the warped song time for STOPS. Similarly, the function
 
     \begin{equation}
 	    t^{-1}_{(d)}(x) =\begin{dcases}
@@ -184,7 +255,7 @@ We can also easily  calculate the two different inverse functions to model when 
 	    \end{dcases}
 	    \label{eq:todelays}
     \end{equation}
-    will map from the sequencer time into the song time for DELAYS. Note that the signs at the conditions are slightly different.
+    will map from the sequencer time into the warped song time for DELAYS. Note that the signs at the conditions are slightly different.
 
 
 \begin{figure}[htpb]
@@ -199,7 +270,7 @@ We can also easily  calculate the two different inverse functions to model when 
 ]
 \begin{axis}[
   axis x line=middle, axis y line=middle,
-  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Song time,
+  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Warped song time,
   xmin=0, xmax=15, xtick={0,...,15}, xlabel=Sequencer time,
 ]
 \addplot[blue, domain=0:15, samples=400]{func(x)};
@@ -212,8 +283,40 @@ We can also easily  calculate the two different inverse functions to model when 
 
 \subsection{Formalization}
 
+\paragraph{Warps}
+Let $ \mathcal{W} =  \left\{\left( b_i^{(w)}, w_i \right)\right\}_{i=1}^{n} $ be a sequence of WARPS, where $ w_i $ is the warp (measured in beats) at beat $ b_i^{(w)} $ and let $ f^{-1}: \mathbb{B}\rightarrow \mathbb{S^{*}} $  be a function that maps from the beat space into the sequencer time space. We define a new set
+\begin{equation}
+	\mathcal{W'} = \left\{\left( b_i', w_i' \right)\right\} =\bigcup_{i=2}^{n}  \left\{\left( f^{-1} \left( b_i^{(w)} \right),z \left( w_i, b_i^{(w)} \right) \right)\right\}
+\end{equation}
+where 
+\begin{equation}
+	z(w,b) = f^{-1}(b+w) - f^{-1}(b) \,.
+\end{equation}
 
-Let $ \mathcal{T} =  \left\{\left( b_i^{(t)}, r_i \right)\right\}_{i=1}^{n} $ be a sequence of STOPS or DELAYS, where $ r_i $ is the stop or delay (measured in seconds) at beat $ b_i^{(t)} $. Let $ f^{-1}:\mathbb{B}\rightarrow \mathbb{S^{*}} $ be a function that retrieves the second from the start of the song given a current beat, where $ \mathbb{B} = \mathbb{R} $, and $ \mathbb{S^{*}} = \mathbb{R}$.
+We define the function $ q: \mathbb{S}\rightarrow \mathbb{W} $
+\begin{equation}
+	q(x) = \begin{dcases}
+		x\,, & \text{if $ x \leq b_1' $}\,;\\
+		x+ \sum_{j=1}^{i}w_j'\,, & \text{if $ b_i' - \sum_{j=1}^{i-1}w_j' < x \leq b_{i+1}' - \sum_{j=1}^{i}w_j'\,,\quad \forall i=1,\dots,n$}\,;\\
+	\end{dcases}
+	\label{eq:q-1}
+\end{equation}
+where $ b_{n+1}' := \infty $ which maps from the song time space into the warped time space, if $ \mathcal{W} \neq \emptyset $.
+
+We define the function $ q^{-1}: \mathbb{W}\rightarrow \mathbb{S} $
+\begin{equation}
+	q^{-1}(x) = \begin{dcases}
+		x\,, & \text{if $ x \leq b_1' $}\,;\\
+		b_i'- \sum_{j=1}^{i-1}w_j'\,, & \text{if $ b_i' < x \leq b_i'+ w_i'\,,\quad \forall i=1,\dots,n$}\,;\\
+		x - \sum_{j=1}^{i}w_j'\,, & \text{if $ b_i' + w_i' < x \leq b_{i+1}'\,,\quad \forall i=1,\dots,n$}\,;\\
+	\end{dcases}
+	\label{eq:q}
+\end{equation}
+when $ \mathcal{W} \neq \emptyset $, where $ b^{(w)}_0 := -\infty $, that maps from the warped time spate into the song time space.
+If $ \mathcal{W} = \emptyset $, then $ q(x) = q^{-1}(x) = x$. 
+
+\paragraph{Stops and Delays}
+Let $ \mathcal{T} =  \left\{\left( b_i^{(t)}, r_i \right)\right\}_{i=1}^{n} $ be a sequence of STOPS or DELAYS, where $ r_i $ is the stop or delay (measured in seconds) at beat $ b_i^{(t)} $. Let $ f^{-1}:\mathbb{B}\rightarrow \mathbb{S^{*}} $ be a function that retrieves the sequencer time given a beat, where $ \mathbb{B} = \mathbb{R} $, and $ \mathbb{S^{*}} = \mathbb{R}$.
 
 We define a new set 
 \begin{equation}
@@ -221,7 +324,7 @@ We define a new set
 	\label{eq:tprimeset}
 \end{equation}
 where $ c_i $ is the second from the start of the song of beat $ b_i^{(t)} $.
-We define the functions $ t_{(s)}: \mathbb{D}\rightarrow \mathbb{S^{*}} $ and $ t_{(d)}: \mathbb{S}\rightarrow \mathbb{D} $
+We define the functions $ t_{(s)}: \mathbb{D}\rightarrow \mathbb{S^{*}} $ and $ t_{(d)}: \mathbb{W}\rightarrow \mathbb{D} $
 \begin{equation}
 	t_{(s)}(x) = t_{(d)}(x) = \begin{dcases}
 		x - \sum_{j=1}^{i-1}r_j\,, & \text{if $ c_{i-1} + \sum_{j=1}^{i-1}r_j < x \leq c_i + \sum_{j=1}^{i-1}r_j\,, \quad \forall i=1,\dots,n$}\,;\\
@@ -230,7 +333,7 @@ We define the functions $ t_{(s)}: \mathbb{D}\rightarrow \mathbb{S^{*}} $ and $ 
 	\end{dcases}
 	\label{eq:t}
 \end{equation}
-when $ \mathcal{T'} \neq \emptyset $, where $ c_0 := -\infty $,  that maps from the song time into the sequencer time. 
+when $ \mathcal{T'} \neq \emptyset $, where $ c_0 := -\infty $,  that maps from the warped song time into the sequencer time. 
 
 We define the function $ t_{(s)}^{-1}: \mathbb{S^{*}}\rightarrow \mathbb{D} $
 \begin{equation}
@@ -240,7 +343,7 @@ We define the function $ t_{(s)}^{-1}: \mathbb{S^{*}}\rightarrow \mathbb{D} $
 	\end{dcases}
 	\label{eq:t-1s}
 \end{equation}
-with $ c_{n+1} := \infty $ which maps from the sequencer time into the song time for the STOPS, if $ \mathcal{T'} \neq \emptyset $, and the function $ t_{(d)}^{-1}: \mathbb{D}\rightarrow \mathbb{S} $
+with $ c_{n+1} := \infty $ which maps from the sequencer time into the delayed song time for the STOPS, if $ \mathcal{T'} \neq \emptyset $, and the function $ t_{(d)}^{-1}: \mathbb{D}\rightarrow \mathbb{S} $
 \begin{equation}
 	t_{(d)}^{-1}(x) = \begin{dcases}
 		x\,, & \text{if $ x < c_1 $}\,;\\
@@ -248,8 +351,9 @@ with $ c_{n+1} := \infty $ which maps from the sequencer time into the song time
 	\end{dcases}
 	\label{eq:t-1s}
 \end{equation}
-that maps from the sequencer time into the song time for the DELAYS, if $ \mathcal{T'}\neq \emptyset $. If $ \mathcal{T'} = \emptyset $, then $ t_{(s)}(x) = t_{(s)}^{-1}(x) = x$ and $t_{(d)}(x) = t_{(d)}^{-1} (x) = x $, for STOPS and DELAYS respectively.
-The final mapping from song time into sequencer time is the composition of $t_{(d)}$ and $ t_{(s)} $, $ t_{(d)}\circ t_{(s)} $. Similarly, the mapping from sequencer time into the song time is $ t_{(s)}^{-1}\circ 1_{(d)}^{-1} $.
+that maps from the delayed time into the warped song time for the DELAYS, if $ \mathcal{T'}\neq \emptyset $. If $ \mathcal{T'} = \emptyset $, then $ t_{(s)}(x) = t_{(s)}^{-1}(x) = x$ and $t_{(d)}(x) = t_{(d)}^{-1} (x) = x $, for STOPS and DELAYS respectively.
+\paragraph{Song time to sequencer time mapping}
+The final mapping from song time into sequencer time is  $ t_{(s)}\circ t_{(d)}\circ q: \mathbb{S}\rightarrow \mathbb{S^{*}} $. Similarly, the mapping from sequencer time into the song time is $ q^{-1}\circ t_{(d)}^{-1}\circ 1_{(s)}^{-1}: \mathbb{S^{*}}\rightarrow \mathbb{S} $.
     \section{From sequencer time to beat}
 
     \subsection{Introduction}\label{sec:stepmania-definition-time2beat}
@@ -527,20 +631,20 @@ Now, this is great! By asking $p$, now we have the effective beat, and therefore
 
     Let
     \begin{equation}
-	    \left\{ \left( b_{i}^{(s)},s_{i} \right) \right\} _{i=1}^{m} = \mathcal{S} = B^{(s)} \times S
+	    \left\{ \left( b_{i}^{(s)},s_{i} \right) \right\} _{i=1}^{n} = \mathcal{S} = B^{(s)} \times S
 	    \label{eq:S}
     \end{equation}
-    be a sequence of $m$ scroll signatures, where $s_i \in S = \{s_j\}_{j=1}^{m}$ is the scroll value at beat $b_i^{(s)} \in B^{(s)}= \{b_j^{(s)}\}_{j=1}^{m}$.
+    be a sequence of $m$ scroll signatures, where $s_i \in S = \{s_j\}_{j=1}^{n}$ is the scroll value at beat $b_i^{(s)} \in B^{(s)}= \{b_j^{(s)}\}_{j=1}^{n}$.
 
     We define the function $ p: \mathbb{R}\rightarrow \mathbb{R} $
     \begin{equation}
-	    p(x) = \int g(x) dx = \begin{dcases}
+	    p(x) =  \begin{dcases}
 		    s_1x\,, & \text{if $ x \leq b^{(s)}_2 $}\,;\\
-		    p(b^{(s)}_i) + (x-b^{(s)}_i)\times s_i\,, & \text{if $ b^{(s)}_{i} < x \leq b^{(s)}_{i+1}\,; \quad \forall i=2,\dots,n'$}\,,
+		    p \left( b^{(s)}_i \right) + \left( x-b^{(s)}_i \right) \times s_i\,, & \text{if $ b^{(s)}_{i} < x \leq b^{(s)}_{i+1}\,; \quad \forall i=2,\dots,n$}\,,
 	    \end{dcases}
 	    \label{eq:position-final}
     \end{equation}
-    as the function that retrieves the position given a beat.
+    as the function that retrieves the position given a beat, where $ b^{(s)}_{i+1} := \infty $.
     \section{From beat to scroll}
     \subsection{Introduction}
     Another issue that we might have is to know how far upwards we should scroll the notes from its original position given the current beat. If we did not have any other gimmicks, this would be very easy to compute. Let us suppose that the notes redendered in the screen are squares of one unity of length and height, and that one beat is worth one distance of separation, as shown in Figure \ref{fig:notes-layout}.
@@ -552,26 +656,9 @@ Now, this is great! By asking $p$, now we have the effective beat, and therefore
     \end{figure}
     In this set up, the amount of scroll that we have to apply for a given beat $ x $ is just $ -x $ (if we were scrolling upwards, on the $y$ axis).
 
-    However there are three gimmicks that modify this scroll function in a number of different ways: \texttt{\#WARPS}, \texttt{\#SPEEDS}, and \texttt{\#SCROLLS}. Let us see and example to know what these modifiers do. Suppose we have the following \texttt{\#WARPS} definition:
-    \begin{verbatim}
-    #WARPS:4=2;     
-    \end{verbatim}
-    It is equivalent to this one:
-    \begin{verbatim}
-  {
-    [
-      beat: 4,
-      warp: 2
-    ]
-  }
-    \end{verbatim}
-    As it turns out, this gimmick is telling us the following information:
-    \begin{enumerate}
-	    \item At beat 4, warp over the next 2 following beats, i.e. skip two beats.
-	    \item Notes with beats in the range $ [4, 4+2) = [4,6) $ will become fake notes.
-    \end{enumerate}
+    However there are two gimmicks that modify this scroll function w.r.t. the beat space in a number of different ways: \texttt{\#SPEEDS}, and \texttt{\#SCROLLS}. Let us see and example to know what these modifiers do.
     
-    On the other hand, suppose we have the following \texttt{\#SPEEDS} definition:
+    On the one hand, suppose we have the following \texttt{\#SPEEDS} definition:
     \begin{verbatim}
     #SPEEDS:4=2=1=0,6=0.5=1=1;     
     \end{verbatim}
@@ -599,7 +686,7 @@ Now, this is great! By asking $p$, now we have the effective beat, and therefore
 	    \item From beat 6 on, the separation between notes increases by a factor of 7, the scrolling speed also increases by a factor of 7, and because the \texttt{type} is \texttt{1}, this transition is smoothly applied in the span of 1 \textbf{second}.
     \end{enumerate}
 
-    We have already talked about how the \texttt{\#SCROLLS} definition changes where the notes should be placed on the screen. It turns out that also has an impact on the scrolling function. Taking the same example from Section \ref{sec:beat2noteposition}, we can extract the following information:
+    On the other hand, We have already talked about how the \texttt{\#SCROLLS} definition changes where the notes should be placed on the screen. It turns out that also has an impact on the scrolling function. Taking the same example from Section \ref{sec:beat2noteposition}, we can extract the following information:
 
 
     \begin{enumerate}
@@ -609,74 +696,9 @@ Now, this is great! By asking $p$, now we have the effective beat, and therefore
     \end{enumerate}
     \subsection{Challenge}
 
-    We would like to have a function $ q: \mathbb{R}\rightarrow \mathbb{R} $ that calculates the warped beat value for a given beat as well as its inverse, $ q^{-1} $, a function $ e: \mathbb{R}\rightarrow \mathbb{R} $ that calculates the speed factor at a given beat, and a function $ g: \mathbb{R}\rightarrow \mathbb{R} $ that calculates the scroll value.
+    We would like to have a function $ e: \mathbb{R}\rightarrow \mathbb{R} $ that calculates the speed factor at a given beat, and a function $ g: \mathbb{R}\rightarrow \mathbb{R} $ that calculates the scroll value.
 
     \subsection{Solution}
-
-    \paragraph{Warps}
-    First, let us deal with the problem of the WARPS. We would need to create a function that maps from beats to warped beats first, so we could retrieve the warped beat value w.r.t. it.
-    Actually, the function that we are looking foris pretty much identical to that shown in Figure \ref{fig:seqtime2songtime}
-    \begin{equation}
-	    q(x) = \begin{dcases}
-		    x\,, &\text{if $ x \leq 4 $}\,;\\
-		    x + 2\,, &\text{if $ x > 4 $}\,.\\
-	    \end{dcases}
-	    \label{eq:warps-example}
-    \end{equation}
-
-    You can see the function plotted in Figure \ref{fig:warps-example}.
-
-\begin{figure}[htpb]
-	\centering
-    \begin{tikzpicture}[
-  declare function={
-	  func(\x)= (\x<=4) * (\x)  +
-	  (\x>4) * (\x+2);
-  }
-]
-\begin{axis}[
-  axis x line=middle, axis y line=middle,
-  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Warped Beat,
-  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Beat,
-]
-\addplot[blue, domain=0:15, samples=400]{func(x)};
-\end{axis}
-\end{tikzpicture} 
-\caption{Plot of $ q $}
-	\label{fig:warps-example}
-\end{figure}
-
-And that is that. Actually, the output of this function is already the scroll value that we are looking for!  It is inverse
-\begin{equation}
-	q^{-1}(x) =  \begin{dcases}
-		x\,, & \text{if $ x \leq 4 $}\,;\\
-		4\,, & \text{if $ 4 < x \leq 4+2 $}\,;\\
-		x-2\,, & \text{if $ x > 4+2$}\,;\\
-	\end{dcases}
-	\label{eq:warps-inverse}
-\end{equation}
-also is very similar to how we calculated $ t_{(s)}^{-1} $ in Section \ref{sec:songtime2seqtime}. You can visualize it in Figure \ref{fig:warps-example-inverse}.
-
-\begin{figure}[htpb]
-	\centering
-    \begin{tikzpicture}[
-  declare function={
-	  func(\x)= (\x<=4) * (\x)  +
-	  and(\x>4, \x<=6) * (4)+
-	  (\x>6) * (\x-2);
-  }
-]
-\begin{axis}[
-  axis x line=middle, axis y line=middle,
-  ymin=0, ymax=15, ytick={0,...,15}, ylabel=Beat,
-  xmin=0, xmax=15, xtick={0,...,15}, xlabel=Warped Beat,
-]
-\addplot[blue, domain=0:15, samples=400]{func(x)};
-\end{axis}
-\end{tikzpicture} 
-\caption{Plot of $ q^{-1} $}
-	\label{fig:warps-example-inverse}
-\end{figure}
 
 \paragraph{Speeds}
 
@@ -722,33 +744,6 @@ There is not much to say here. The function $ g $ that we are looking for is jus
 \end{equation}
 
 \subsection{Formalization}
-
-\paragraph{Warps}
-Let $ \mathcal{W} =  \left\{\left( b_i^{(w)}, w_i \right)\right\}_{i=1}^{n} $ be a sequence of WARPS, where $ w_i $ is the warp (measured in beats) at beat $ b_i^{(w)} $. 
-
-We define the function $ q: \mathbb{B}\rightarrow \mathbb{T} $
-\begin{equation}
-	q(x) = \begin{dcases}
-		x\,, & \text{if $ x \leq b^{(w)}_1 $}\,;\\
-		x+ \sum_{j=1}^{i}w_i\,, & \text{if $ b^{(w)}_i < x \leq b^{(w)}_{i+1}\,,\quad \forall i=1,\dots,n$}\,;\\
-	\end{dcases}
-	\label{eq:q-1}
-\end{equation}
-with $ b^{(w)}_{n+1} := \infty $ which maps from the beat space into the translation space, if $ \mathcal{W} \neq \emptyset $.
-
-We define the function $ q^{-1}: \mathbb{T}\rightarrow \mathbb{B} $
-\begin{equation}
-	q^{-1}(x) = \begin{dcases}
-		x - \sum_{j=1}^{i-1}w_j\,, & \text{if $ b^{(w)}_{i-1} + \sum_{j=1}^{i-1}w_j < x \leq b^{(w)}_i + \sum_{j=1}^{i-1}w_j\,, \quad \forall i=1,\dots,n$}\,;\\
-		b^{(w)}_i\,, & \text{if $ b^{(w)}_i + \sum_{j=1}^{i-1}w_j < x \leq b^{(w)}_i + \sum_{j=1}^i w_j\,,\quad \forall i=1,\dots,n $}\,;\\
-		x - \sum_{j=i}^n w_j & \text{if $ x > b^{(w)}_n + \sum_{j=1}^n w_j $}\,; 
-	\end{dcases}
-	\label{eq:q}
-\end{equation}
-when $ \mathcal{W} \neq \emptyset $, where $ b^{(w)}_0 := -\infty $, that maps from the translation space into the beat space.
-
-If $ \mathcal{W} = \emptyset $, then $ q(x) = q^{-1}(x) = x$. 
-
 \paragraph{Speeds}
 Let $ \mathcal{E} =  \left\{\left( b_i^{(e)}, s_i, p_i, t_i \right)\right\}_{i=1}^{n} $ be a sequence of SPEEDS, where $ s_i $ is the speed change at beat $ b_i^{(e)} $ with a span transition of $ p_i $ beats if $ t_i = 0 $, or $ p_i $ seconds if $ t_i=1 $. 
 
@@ -762,7 +757,7 @@ We define a new sequence $ \mathcal{E'} =  \left\{\left( b_i^{(e)}, s_i, p'_i \r
 \end{equation}
 where 
 \begin{equation}
-	g(p,b) =\left( f \circ t_{(s)} \circ t_{(d)}  \right)\left(  \left( t_{(d)}^{-1} \circ  t_{(s)}^{-1} \circ f^{-1} \right)(b) + p \right)\,.
+	g(p,b) =\left( f \circ t_{(s)} \circ t_{(d)}\circ q  \right)\left(  \left( q^{-1}\circ t_{(d)}^{-1} \circ  t_{(s)}^{-1} \circ f^{-1} \right)(b) + p \right)-b\,.
 	\label{eq:iureio}
 \end{equation}
 
@@ -803,16 +798,16 @@ To ease the understanding, Table \ref{tab:symbol-table} gathers all the function
 		    $ \mathbb{P} $ & Position space (units) $ \mathbb{P} = \mathbb{R} $.\\
 		    $ \mathbb{T} $ & Scroll space (units) $ \mathbb{T} = \mathbb{R} $.\\
 		    $ \mathbb{E} $ & Speed space (speed factor units) $ \mathbb{E} = \mathbb{R} $.\\
-		    $ \mathbb{W} $ & Warped Beat space (units) $ \mathbb{W} = \mathbb{R} $.\\
-		    $ t_{(d)} $ & Function  $ t_{(s)}: \mathbb{S}\rightarrow \mathbb{D} $ that maps from the song time space into the delayed time space.\\
-	    $ t_{(d)}^{-1} $ & Function  $ t_{(d)}^{-1}: \mathbb{D}\rightarrow \mathbb{S} $ that maps from the the delayed time space into the song time space.\\
+		    $ \mathbb{W} $ & Warped song time space (units) $ \mathbb{W} = \mathbb{R} $.\\
+		    $ t_{(d)} $ & Function  $ t_{(s)}: \mathbb{W}\rightarrow \mathbb{D} $ that maps from the song time space into the delayed time space.\\
+	    $ t_{(d)}^{-1} $ & Function  $ t_{(d)}^{-1}: \mathbb{D}\rightarrow \mathbb{W} $ that maps from the the delayed time space into the song time space.\\
 		    $ t_{(s)} $ & Function  $ t_{(s)}: \mathbb{D}\rightarrow \mathbb{S^{*}} $ that maps from the delayed time space into the sequencer time space.\\
 	    $ t_{(s)}^{-1}$ & Function  $ t_{(s)}^{-1}: \mathbb{S^{*}}\rightarrow \mathbb{D} $ that maps from the the sequencer time space into the delayed time space.\\
 		    $ f $ & Function $ f: \mathbb{S^{*}}\rightarrow \mathbb{B} $ that maps from the sequencer time space into the beat space. \\
 		    $ f^{-1} $ & Function $ f^{-1}: \mathbb{B}\rightarrow \mathbb{S^{*}} $ that maps from the beat space into the sequencer time space.\\
 		    $ p $ & Function $ p: \mathbb{B}\rightarrow \mathbb{P} $ that maps from the beat space into the position space.\\
-		    $ q $ & Function $ q: \mathbb{B}\rightarrow \mathbb{W} $ that maps from the beat space into the warped beat space.\\
-		    $ q^{-1} $ & Function $ q^{-1}: \mathbb{W}\rightarrow \mathbb{B} $ that maps from the warped beat space into the beat space.\\
+		    $ q $ & Function $ q: \mathbb{S}\rightarrow \mathbb{W} $ that maps from the beat space into the warped beat space.\\
+		    $ q^{-1} $ & Function $ q^{-1}: \mathbb{W}\rightarrow \mathbb{S} $ that maps from the warped beat space into the beat space.\\
 		    $ e $ & Function $ e: \mathbb{B}\rightarrow \mathbb{E} $ that maps from the beat space into the speed space.\\
 		    $ g $ & Function $ g: \mathbb{W}\rightarrow \mathbb{T} $ that maps from the warped beat space into the scroll space.\\
 		    \bottomrule
@@ -830,18 +825,18 @@ To ease the understanding, Table \ref{tab:symbol-table} gathers all the function
 
     Let $ \mathcal{N} =  \left\{ \left( u_{i} \right) \right\}_{i=1}^{n} $ be a sequence of notes where $ u_{i} $ is the beat when the $ i $-th note should be tapped. We define a new set 
     \begin{equation}
-	    \mathcal{N'} = \left\{ \left( u_{i}, v_i, w_i \right) \right\} = \bigcup_{\{u\}\in \mathcal{N}} \left\{ \left(u, g(u), p(u) \right) \right\}
+	    \mathcal{N'} = \left\{ \left( u_{i}, v_i, w_i \right) \right\} = \bigcup_{\{u\}\in \mathcal{N}} \left\{ \left(u, z(u), p(u) \right) \right\}
 	    \label{eq:set}
     \end{equation}
-    where $ w: \mathbb{W}\rightarrow \mathbb{S} $
+    where $ z: \mathbb{B}\rightarrow \mathbb{S} $
     \begin{equation}
-	    w(x) = \left( t_{(d)}^{-1}\circ t_{(s)}^{-1}\circ f^{-1}\circ q^{-1} \right)(x)\,,
+	    z(x) = \left( q^{-1}\circ t_{(d)}^{-1}\circ t_{(s)}^{-1}\circ f^{-1}\right)(x)\,,
 	    \label{eq:final-g}
     \end{equation}
-    $ v_i $ is the exact time where the $ i $-th note should be tapped, and $ w_i $ is its relative position at beat 0 in the scrolling axis.
+    and thus $ v_i $ is the exact time where the $ i $-th note should be tapped, and $ w_i $ is its relative position at beat 0 in the scrolling axis.
     At a given moment in time $ t $ w.r.t. to the begginig of the song, the $ i $-th note should be positioned at
     \begin{equation}
-	    \left[ w_i - \left(g\circ q\circ f\circ t_{(s)}\circ t_{(d)} \right)(t) \right] \times \left( e\circ q\circ f\circ t_{(s)}\circ t_{(d)} \right)(t)\,.
+	    \left[ w_i - \left(g\circ f\circ t_{(s)}\circ t_{(d)}\circ q \right)(t) \right] \times \left( e\circ q\circ f\circ t_{(s)}\circ t_{(d)}\circ q \right)(t)\,.
 	    \label{eq:final-position}
     \end{equation}
 
