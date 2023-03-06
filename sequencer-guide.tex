@@ -840,6 +840,48 @@ To ease the understanding, Table \ref{tab:symbol-table} gathers all the function
 	    \label{eq:final-position}
     \end{equation}
 
+\appendix
+
+\section{Tickcounts and Piu-style holds}
+
+Let 
+\begin{equation}
+	\mathcal{U} = \{(b_{i},t_{i})\}_{i=1}^{n}	
+\end{equation}
+be a sequence of TICKCOUNTS, where $ t_{i} $ is the tick count at beat $ b_{i} $. 
+
+For each piu-style hold in the span of beats $ h_1, h_2 $, where $ h_1 $ is the first beat of the hold and $ h_2 $ is the last beat, we construct a new set
+\begin{align}
+	\mathcal{U'} =\{(b_{i}',t_{i}')\}_{i=1}^{n'} &= \{ (h_1, g(h_1)) \} \\
+	&\cup \bigcup_{(b,t)\in \mathcal{U}} \begin{dcases}
+		(b, t)\,, & \text{if $ b > h1 \land b < h_2 $}\,;\\
+		\emptyset\,, & \text{otherwise}\,;
+	\end{dcases} \\
+	& \cup\{ (h_2, 0) \}\,, 
+\end{align}
+where 
+\begin{equation}
+	g(x) = \min_{\substack{(b,t)\in \mathcal{U};\\ x \leq b}} x-b\,.
+\end{equation}
+We define the sequence of beats where fake tapnotes should be place as
+\begin{align}
+	\mathcal{T} &=\begin{dcases}
+		\{h_1\}\,, & \text{if $a_1 \neq 0$}\,;\\
+		\emptyset & \text{otherwise}\,,
+	\end{dcases}\\
+	& \cup \bigcup_{i=1}^{n'-1} \bigcup_{k=1}^{s_i} \left\{  a_i + \sum_{j=1}^{k-1}\frac{1}{t_{i}'}   \right\}\\
+	& \cup {h_2}\,,
+\end{algin}
+where
+\begin{equation}
+	a_i = b_i' + b_i' \mod \frac{1}{t_{i}'} 
+\end{equation}
+and
+\begin{equation}
+	s_i = t_{i}' (b_{i+1}'-a_i)\,.
+\end{equation}
+
+
 
 \end{document}
 
