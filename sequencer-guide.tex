@@ -836,7 +836,7 @@ To ease the understanding, Table \ref{tab:symbol-table} gathers all the function
     and thus $ v_i $ is the exact time where the $ i $-th note should be tapped, and $ w_i $ is its relative position at beat 0 in the scrolling axis.
     At a given moment in time $ t $ w.r.t. to the begginig of the song, the $ i $-th note should be positioned at
     \begin{equation}
-	    \left[ w_i - \left(g\circ f\circ t_{(s)}\circ t_{(d)}\circ q \right)(t) \right] \times \left( e\circ q\circ f\circ t_{(s)}\circ t_{(d)}\circ q \right)(t)\,.
+	    \left[- w_i + \left(g\circ f\circ t_{(s)}\circ t_{(d)}\circ q \right)(t) \right] \times \left( e\circ f\circ t_{(s)}\circ t_{(d)}\circ q \right)(t)\,.
 	    \label{eq:final-position}
     \end{equation}
 
